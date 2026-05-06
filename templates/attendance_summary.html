@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Attendance Summary{% endblock %}
+{% block page_title %}Attendance Summary{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-h2">Attendance Summary</h2>
+    <p class="page-sub">Monthly overview per employee</p>
+  </div>
+  <a href="{{ url_for('attendance') }}" class="btn-secondary-custom">
+    <i class="bi bi-calendar2-check me-1"></i>Mark Attendance
+  </a>
+</div>
+
+<!-- Month Filter -->
+<div class="date-bar mb-4">
+  <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
+    <label class="date-label"><i class="bi bi-calendar-month me-2"></i>Filter by Month:</label>
+    <input type="month" name="month" class="form-input date-input" value="{{ month_filter }}"/>
+    <button type="submit" class="btn-primary-custom">Apply</button>
+    <a href="{{ url_for('attendance_summary') }}" class="btn-secondary-custom">Reset</a>
+  </form>
+</div>
+
+<div class="card-custom">
+  <div class="card-header-custom">
+    <span><i class="bi bi-table me-2"></i>Summary — {{ month_filter }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table-custom">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee</th>
+          <th>Present Days</th>
+          <th>Absent Days</th>
+          <th>Total Marked</th>
+          <th>Attendance %</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in summary %}
+        {% set pct = ((s.present / s.total * 100) | int) if s.total > 0 else 0 %}
+        <tr>
+          <td class="text-muted">{{ loop.index }}</td>
+          <td>
+            <div class="emp-cell">
+              <div class="emp-avatar">{{ s.name[0].upper() }}</div>
+              <span class="emp-name">{{ s.name }}</span>
+            </div>
+          </td>
+          <td><span class="num-green">{{ s.present }}</span></td>
+          <td><span class="num-red">{{ s.absent }}</span></td>
+          <td>{{ s.total }}</td>
+          <td>
+            <span class="pct-badge {% if pct >= 80 %}pct-good{% elif pct >= 50 %}pct-mid{% else %}pct-low{% endif %}">
+              {{ pct }}%
+            </span>
+          </td>
+          <td style="min-width:120px">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width:{{ pct }}%"></div>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty-state">
+          <i class="bi bi-calendar-x"></i>
+          <p>No attendance records for this month.</p>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

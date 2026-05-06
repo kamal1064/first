@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo"><i class="bi bi-people-fill"></i></div>
+      <h1>Welcome back</h1>
+      <p>Sign in to your EMS account</p>
+    </div>
+
+    {% if error %}
+    <div class="alert-custom alert-danger-custom">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+    {% endif %}
+    {% if success %}
+    <div class="alert-custom alert-success-custom">
+      <i class="bi bi-check-circle-fill"></i> {{ success }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      <div class="form-group-custom">
+        <label>Username</label>
+        <div class="input-with-icon">
+          <i class="bi bi-person"></i>
+          <input type="text" name="username" class="form-input" placeholder="Enter your username" required/>
+        </div>
+      </div>
+      <div class="form-group-custom">
+        <label>Password</label>
+        <div class="input-with-icon">
+          <i class="bi bi-lock"></i>
+          <input type="password" name="password" class="form-input" placeholder="Enter your password" required/>
+        </div>
+      </div>
+      <button type="submit" class="btn-auth">
+        <span>Sign In</span><i class="bi bi-arrow-right"></i>
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account? <a href="{{ url_for('signup') }}">Create one</a>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="auth-panel">
+    <div class="auth-panel-content">
+      <h2>Employee Management<br/>Made Simple</h2>
+      <p>Track attendance, manage salaries, and gain insights about your team — all in one place.</p>
+      <div class="feature-list">
+        <div class="feature-item"><i class="bi bi-check2-circle"></i> Real-time attendance tracking</div>
+        <div class="feature-item"><i class="bi bi-check2-circle"></i> Automated salary calculation</div>
+        <div class="feature-item"><i class="bi bi-check2-circle"></i> Insightful dashboard charts</div>
+        <div class="feature-item"><i class="bi bi-check2-circle"></i> CSV data export</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dark mode button even on auth pages -->
+<button class="theme-toggle floating-theme" id="themeToggle" title="Toggle dark mode">
+  <i class="bi bi-moon-fill" id="themeIcon"></i>
+</button>
+{% endblock %}

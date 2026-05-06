@@ -1,0 +1,261 @@
+<!-- language: jinja-html -->
+{% extends "base.html" %}
+
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-h2">Daily Attendance</h2>
+        <p class="page-sub">
+            Employees are present by default. Only mark absentees.
+        </p>
+    </div>
+
+```
+<a href="{{ url_for('attendance_summary') }}"
+   class="btn-secondary-custom">
+    <i class="bi bi-bar-chart me-1"></i>
+    View Summary
+</a>
+```
+
+</div>
+
+<!-- Date Picker -->
+
+<div class="date-bar mb-4">
+
+```
+<label class="date-label">
+    <i class="bi bi-calendar3 me-2"></i>
+    Select Date:
+</label>
+
+<input
+    type="date"
+    id="datePicker"
+    class="form-input date-input"
+    value="{{ selected_date }}"
+    max="{{ today }}"
+>
+
+<button
+    class="btn-primary-custom"
+    onclick="changeDate()"
+>
+    <i class="bi bi-arrow-right"></i>
+    Go
+</button>
+```
+
+</div>
+
+<!-- Attendance Cards -->
+
+{% if employees %}
+
+<div class="row g-3" id="attCards">
+
+```
+{% for e in employees %}
+
+{% set status = att_map.get(e['id'], 'Present') %}
+
+<div class="col-xl-4 col-md-6">
+
+    <div class="att-card" id="card-{{ e['id'] }}">
+
+        <!-- Employee Info -->
+        <div class="att-emp-info">
+
+            <div class="emp-avatar">
+                {{ e['name'][0].upper() }}
+            </div>
+
+            <div>
+                <div class="att-emp-name">
+                    {{ e['name'] }}
+                </div>
+
+                <div class="att-emp-meta">
+                    {{ e['gender'] or 'Employee' }}
+                    · Age {{ e['age'] }}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Status Badge -->
+        <div class="att-status" id="status-{{ e['id'] }}">
+
+            {% if status == 'Absent' %}
+
+            <span class="badge-status badge-absent">
+                Absent
+            </span>
+
+            {% else %}
+
+            <span class="badge-status badge-present">
+                Present
+            </span>
+
+            {% endif %}
+
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="att-actions">
+
+            {% if status == 'Absent' %}
+
+            <button
+                class="att-btn att-btn--present"
+                data-emp-id="{{ e['id'] }}"
+                data-status="Present"
+                onclick="markAttFromButton(this)"
+            >
+                <i class="bi bi-check-circle-fill me-1"></i>
+                Mark Present
+            </button>
+
+            {% else %}
+
+            <button
+                class="att-btn att-btn--absent"
+                data-emp-id="{{ e['id'] }}"
+                data-status="Absent"
+                onclick="markAttFromButton(this)"
+            >
+                <i class="bi bi-x-circle-fill me-1"></i>
+                Mark Absent
+            </button>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endfor %}
+```
+
+</div>
+
+<!-- Quick Actions -->
+
+<div class="quick-actions mt-4">
+
+```
+<span class="text-muted me-3">
+    Quick Actions:
+</span>
+
+<button
+    class="btn-outline-danger-custom"
+    onclick="markAllAbsent()"
+>
+    <i class="bi bi-x-lg me-1"></i>
+    Mark All Absent
+</button>
+```
+
+</div>
+
+{% else %}
+
+<div class="empty-full">
+
+```
+<i class="bi bi-people"></i>
+
+<p>
+    No employees found.
+    <a href="{{ url_for('employees') }}">
+        Add employees first.
+    </a>
+</p>
+```
+
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+
+const empIds = [];
+{% for e in employees %}
+empIds.push({{ e['id'] }});
+{% endfor %}
+
+function markAttFromButton(button) {
+
+    const empId = button.dataset.empId;
+
+    const status = button.dataset.status;
+
+    markAtt(empId, status);
+
+}
+
+function changeDate() {
+
+    const date = document.getElementById('datePicker').value;
+
+    window.location.href = '/attendance?date=' + date;
+}
+
+function markAtt(empId, status) {
+
+    const date = document.getElementById('datePicker').value;
+
+    fetch('/attendance/mark', {
+
+        method: 'POST',
+
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+            emp_id: empId,
+            date: date,
+            status: status
+        })
+
+    })
+
+    .then(response => response.json())
+
+    .then(data => {
+
+        if (data.success) {
+            location.reload();
+        }
+
+    })
+
+    .catch(error => {
+        console.error(error);
+    });
+}
+
+function markAllAbsent() {
+
+    empIds.forEach(function(id) {
+        markAtt(id, 'Absent');
+    });
+}
+
+</script>
+
+{% endblock %}

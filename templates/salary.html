@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Salary{% endblock %}
+{% block page_title %}Salary Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-h2">Salary Calculations</h2>
+    <p class="page-sub">Attendance-based salary for the selected month</p>
+  </div>
+  <a href="{{ url_for('export_data') }}" class="btn-secondary-custom">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+</div>
+
+<!-- Month Filter -->
+<div class="date-bar mb-4">
+  <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
+    <label class="date-label"><i class="bi bi-calendar-month me-2"></i>Month:</label>
+    <input type="month" name="month" class="form-input date-input" value="{{ month_filter }}"/>
+    <button type="submit" class="btn-primary-custom">Load</button>
+  </form>
+</div>
+
+<!-- Formula Info Card -->
+<div class="info-card mb-4">
+  <i class="bi bi-info-circle-fill"></i>
+  <div>
+    <strong>Salary Formula:</strong>
+    <code>salary_per_day = monthly_salary ÷ 30</code> &nbsp;·&nbsp;
+    <code>final_salary = salary_per_day × present_days</code>
+  </div>
+</div>
+
+<div class="card-custom">
+  <div class="card-header-custom">
+    <span><i class="bi bi-cash-stack me-2"></i>Salary Details — {{ month_filter }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table-custom">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee</th>
+          <th>Monthly Salary</th>
+          <th>Per Day (÷30)</th>
+          <th>Present Days</th>
+          <th>Calculated Salary</th>
+          <th>Status</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in salary_details %}
+        <tr id="sal-row-{{ s.id }}">
+          <td class="text-muted">{{ loop.index }}</td>
+          <td>
+            <div class="emp-cell">
+              <div class="emp-avatar">{{ s.name[0].upper() }}</div>
+              <span class="emp-name">{{ s.name }}</span>
+            </div>
+          </td>
+          <td class="salary-cell">₹{{ "{:,.0f}".format(s.monthly_salary) }}</td>
+          <td class="text-muted">₹{{ s.salary_per_day }}</td>
+          <td><span class="num-green">{{ s.present_days }}</span></td>
+          <td class="salary-cell fw-bold">₹{{ "{:,.2f}".format(s.final_salary) }}</td>
+          <td>
+            <span class="badge-status {% if s.payment_status == 'Paid' %}badge-paid{% else %}badge-unpaid{% endif %}"
+                  id="pay-badge-{{ s.id }}">
+              {% if s.payment_status == 'Paid' %}✅ Paid{% else %}⏳ Unpaid{% endif %}
+            </span>
+            {% if s.paid_at %}
+            <div class="paid-date" id="paid-date-{{ s.id }}">{{ s.paid_at[:10] }}</div>
+            {% else %}
+            <div class="paid-date" id="paid-date-{{ s.id }}"></div>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if s.payment_status != 'Paid' %}
+            <button class="btn-pay"
+                    id="pay-btn-{{ s.id }}"
+                    data-emp-id="{{ s.id }}"
+                    data-month="{{ month_filter }}"
+                    onclick="markPaid(this)">
+              <i class="bi bi-check2-circle me-1"></i>Mark Paid
+            </button>
+            {% else %}
+            <span class="text-muted" id="pay-btn-{{ s.id }}">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty-state">
+          <i class="bi bi-cash"></i>
+          <p>No employees found. <a href="{{ url_for('employees') }}">Add employees</a> first.</p>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function markPaid(button) {
+  const empId = button.dataset.empId;
+  const month = button.dataset.month;
+  
+  fetch('/salary/mark_paid', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ emp_id: empId, month: month })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('pay-badge-' + empId).outerHTML =
+        `<span class="badge-status badge-paid" id="pay-badge-${empId}">✅ Paid</span>`;
+      document.getElementById('paid-date-' + empId).textContent = data.paid_at.slice(0,10);
+      document.getElementById('pay-btn-'  + empId).outerHTML =
+        `<span class="text-muted" id="pay-btn-${empId}">—</span>`;
+    }
+  });
+}
+</script>
+{% endblock %}

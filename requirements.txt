@@ -1,0 +1,5 @@
+flask>=2.3.0
+gunicorn
+pyotp>=2.8.0
+qrcode>=7.4.2
+Pillow>=9.0.0
