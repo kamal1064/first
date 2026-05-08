@@ -116,11 +116,35 @@ def init_db():
             month TEXT NOT NULL,
             present_days INTEGER DEFAULT 0,
             total_salary REAL DEFAULT 0,
+            advance_amount_paid REAL DEFAULT 0,
+            advance_paid_at TEXT,
             payment_status TEXT DEFAULT 'Unpaid',
             paid_at TEXT,
             FOREIGN KEY (emp_id) REFERENCES employees(id)
         )
     ''')
+
+    # Ensure columns exist for existing DBs
+    try:
+        c.execute('ALTER TABLE salary_records ADD COLUMN advance_amount_paid REAL DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    try:
+        c.execute('ALTER TABLE salary_records ADD COLUMN advance_paid_at TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    # Part time employees table (ensure advance columns exist for existing DBs)
+    try:
+        c.execute('ALTER TABLE part_time_employee ADD COLUMN advance_amount_paid REAL DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    try:
+        c.execute('ALTER TABLE part_time_employee ADD COLUMN advance_paid_at TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     conn.commit()
     conn.close()
@@ -753,17 +777,20 @@ def salary():
             payment_status = rec['payment_status']
             paid_at = rec['paid_at']
 
-        salary_details.append({
+        advance_amount_paid = rec['advance_amount_paid'] if rec else 0
+        advance_paid_at = rec['advance_paid_at'] if rec else None
 
+        salary_details.append({
             'id': e['id'],
             'name': e['name'],
             'monthly_salary': e['salary'],
             'present_days': present_days,
             'salary_per_day': round(salary_per_day, 2),
             'final_salary': final_salary,
+            'advance_amount_paid': advance_amount_paid,
+            'advance_paid_at': advance_paid_at,
             'payment_status': payment_status,
             'paid_at': paid_at
-
         })
 
     conn.close()
@@ -866,6 +893,73 @@ def mark_paid():
     conn.close()
     return jsonify({'success': True, 'paid_at': paid_at})
 
+@app.route('/salary/set_advance', methods=['POST'])
+@login_required
+def salary_set_advance():
+    data = request.get_json()
+    emp_id = data.get('emp_id')
+    month = data.get('month')
+    advance_amount_paid = data.get('advance_amount_paid')
+
+    try:
+        advance_amount_paid = float(advance_amount_paid)
+        if advance_amount_paid < 0:
+            return jsonify({'success': False, 'message': 'Advance must be >= 0'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Advance must be a number'}), 400
+
+    advance_paid_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    conn = get_db()
+    conn.execute('''
+        UPDATE salary_records
+        SET advance_amount_paid=?,
+            advance_paid_at=?
+        WHERE emp_id=? AND month=? AND payment_status IN ('Unpaid','Paid')
+    ''', (advance_amount_paid, advance_paid_at, emp_id, month))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'advance_amount_paid': advance_amount_paid,
+        'advance_paid_at': advance_paid_at
+    })
+
+@app.route('/part-time/set_advance', methods=['POST'])
+@login_required
+def part_time_set_advance():
+    data = request.get_json()
+    record_id = data.get('record_id')
+    advance_amount_paid = data.get('advance_amount_paid')
+
+    try:
+        advance_amount_paid = float(advance_amount_paid)
+        if advance_amount_paid < 0:
+            return jsonify({'success': False, 'message': 'Advance must be >= 0'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Advance must be a number'}), 400
+
+    advance_paid_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    uid = get_current_user_id()
+    conn = get_db()
+    # Update only rows that belong to this user
+    conn.execute('''
+        UPDATE part_time_employee
+        SET advance_amount_paid=?,
+            advance_paid_at=?
+        WHERE id=? AND user_id=?
+    ''', (advance_amount_paid, advance_paid_at, record_id, uid))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'advance_amount_paid': advance_amount_paid,
+        'advance_paid_at': advance_paid_at
+    })
+
 # ─────────────────────────────────────────
 # EXPORT
 # ─────────────────────────────────────────
@@ -909,9 +1003,9 @@ def export_data():
     # === SALARY ===
     writer.writerow(['=== SALARY RECORDS ==='])
     writer.writerow(['Employee ID', 'Employee Name', 'Month',
-                    'Present Days', 'Total Salary', 'Payment Status', 'Paid At'])
+                    'Present Days', 'Total Salary', 'Advance Amount Paid', 'Payment Status', 'Paid At'])
     sal = conn.execute('''
-        SELECT s.emp_id, e.name, s.month, s.present_days, s.total_salary, s.payment_status, s.paid_at
+        SELECT s.emp_id, e.name, s.month, s.present_days, s.total_salary, s.advance_amount_paid, s.payment_status, s.paid_at
         FROM salary_records s
         JOIN employees e ON e.id = s.emp_id
         WHERE e.user_id=?
@@ -919,7 +1013,7 @@ def export_data():
     ''', (uid,)).fetchall()
     for s in sal:
         writer.writerow([s['emp_id'], s['name'], s['month'], s['present_days'],
-                        s['total_salary'], s['payment_status'], s['paid_at']])
+                        s['total_salary'], s['advance_amount_paid'], s['payment_status'], s['paid_at']])
 
     conn.close()
 

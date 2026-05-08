@@ -141,6 +141,8 @@
                     <th>Slab Qty</th>
                     <th>Per Slab</th>
                     <th>Total</th>
+                    <th>Advance Amount Paid</th>
+                    <th class="text-end">Action</th>
                 </tr>
             </thead>
 
@@ -165,13 +167,37 @@
                     <td class="salary-cell fw-bold">
                         ₹{{ r['total_price'] }}
                     </td>
+                    <td class="salary-cell">
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="number"
+                                   step="0.01"
+                                   min="0"
+                                   class="form-input advance-input-part"
+                                   id="advance-input-{{ r['id'] }}"
+                                   data-record-id="{{ r['id'] }}"
+                                   value="{{ "{:,.2f}".format(r['advance_amount_paid'] if r['advance_amount_paid'] is not none else 0) }}"
+                                   style="width: 120px;" />
+                        </div>
+                        <div class="text-muted small mt-1" id="advance-msg-{{ r['id'] }}">
+                            {% if r['advance_paid_at'] %}Saved: {{ r['advance_paid_at'][:10] }}{% endif %}
+                        </div>
+                    </td>
+
+                    <td class="text-end">
+                        <button class="btn-primary-custom btn-advance-update-part"
+                                id="advance-btn-{{ r['id'] }}"
+                                data-record-id="{{ r['id'] }}"
+                                onclick="setAdvancePart(this)">
+                            <i class="bi bi-save me-1"></i>Update
+                        </button>
+                    </td>
 
                 </tr>
 
                 {% else %}
 
                 <tr>
-                    <td colspan="7"
+                    <td colspan="9"
                         class="text-center py-4 text-muted">
 
                         No records found
@@ -224,6 +250,36 @@ priceInput.addEventListener(
     "input",
     calculateTotal
 );
+
+function setAdvancePart(button) {
+    const recordId = button.dataset.recordId;
+    const input = document.getElementById('advance-input-' + recordId);
+    const msg = document.getElementById('advance-msg-' + recordId);
+
+    if (!input) return;
+
+    const value = input.value;
+
+    msg.textContent = 'Saving...';
+
+    fetch('/part-time/set_advance', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ record_id: recordId, advance_amount_paid: value })
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (ok && data.success) {
+            const when = data.advance_paid_at ? data.advance_paid_at.slice(0,10) : '';
+            msg.textContent = when ? `Saved ✅ (${when})` : 'Saved ✅';
+        } else {
+            msg.textContent = data.message ? data.message : 'Failed';
+        }
+    })
+    .catch(() => {
+        msg.textContent = 'Failed';
+    });
+}
 
 </script>
 
