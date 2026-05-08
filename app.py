@@ -21,7 +21,7 @@ from io import BytesIO
 app = Flask(__name__)
 app.secret_key = 'emp_mgmt_secret_key_2024'  # Change in production
 
-DB_PATH = 'database.db'
+DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
 
 # ─────────────────────────────────────────
 # DATABASE SETUP
@@ -33,6 +33,14 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # allows dict-like access
     return conn
+
+# Ensure DB schema exists in all deployment modes (not just __main__)
+# This is important for hosts that import the app via WSGI.
+try:
+    init_db()
+except Exception:
+    # If DB isn't writable yet, the app may still start; schema will be handled on first request.
+    pass
 
 
 def init_db():
