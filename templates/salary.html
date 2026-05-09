@@ -132,7 +132,7 @@
 function markPaid(button) {
   const empId = button.dataset.empId;
   const month = button.dataset.month;
-  
+
   fetch('/salary/mark_paid', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -140,12 +140,18 @@ function markPaid(button) {
   })
   .then(r => r.json())
   .then(data => {
-    if (data.success) {
+    if (data && data.success) {
       document.getElementById('pay-badge-' + empId).outerHTML =
-        `<span class="badge-status badge-paid" id="pay-badge-${empId}">✅ Paid</span>`;
-      document.getElementById('paid-date-' + empId).textContent = data.paid_at.slice(0,10);
+        '<span class="badge-status badge-paid" id="pay-badge-' + empId + '">✅ Paid</span>';
+      document.getElementById('paid-date-' + empId).textContent = (data.paid_at || '').slice(0, 10);
       document.getElementById('pay-btn-'  + empId).outerHTML =
-        `<span class="text-muted" id="pay-btn-${empId}">—</span>`;
+        '<span class="text-muted" id="pay-btn-' + empId + '">—</span>';
+
+      // Lock advance controls
+      const advanceInput = document.getElementById('advance-input-' + empId);
+      const advanceBtn = document.getElementById('advance-btn-' + empId);
+      if (advanceInput) advanceInput.disabled = true;
+      if (advanceBtn) advanceBtn.disabled = true;
     }
   });
 }
@@ -167,16 +173,33 @@ function setAdvance(button) {
   })
   .then(r => r.json().then(data => ({ ok: r.ok, data })))
   .then(({ ok, data }) => {
-    if (ok && data.success) {
+    if (ok && data && data.success) {
       const when = data.advance_paid_at ? data.advance_paid_at.slice(0,10) : '';
-      msg.textContent = when ? `Saved ✅ (${when})` : 'Saved ✅';
+      msg.textContent = when ? 'Saved ✅ (' + when + ')' : 'Saved ✅';
+
+      // (net preview removed)
     } else {
-      msg.textContent = data.message ? data.message : 'Failed';
+      msg.textContent = (data && data.message) ? data.message : 'Failed';
     }
   })
   .catch(() => {
     msg.textContent = 'Failed';
   });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  // lock already-paid rows on load
+  document.querySelectorAll('tr[id^="sal-row-"]').forEach(rowEl => {
+    const empId = rowEl.id.replace('sal-row-', '');
+    const payBadge = document.getElementById('pay-badge-' + empId);
+    if (payBadge && (payBadge.classList.contains('badge-paid') || payBadge.textContent.includes('Paid'))) {
+      const advanceInput = document.getElementById('advance-input-' + empId);
+      const advanceBtn = document.getElementById('advance-btn-' + empId);
+      if (advanceInput) advanceInput.disabled = true;
+      if (advanceBtn) advanceBtn.disabled = true;
+    }
+  });
+});
 </script>
 {% endblock %}

@@ -12,16 +12,19 @@
         <p class="page-sub">
             Employees are present by default. Only mark absentees.
         </p>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+            `` 
+            <a href="{{ url_for('attendance_summary') }}"
+               class="btn-secondary-custom">
+                <i class="bi bi-bar-chart me-1"></i>
+                View Summary
+            </a>
+            ``
+            <span class="badge-status badge-present" id="presentCountPill">Present: 0</span>
+            <span class="badge-status badge-absent" id="absentCountPill">Absent: 0</span>
+        </div>
     </div>
-
-```
-<a href="{{ url_for('attendance_summary') }}"
-   class="btn-secondary-custom">
-    <i class="bi bi-bar-chart me-1"></i>
-    View Summary
-</a>
-```
-
 </div>
 
 <!-- Date Picker -->
@@ -192,70 +195,119 @@
 
 <script>
 
-const empIds = [];
-{% for e in employees %}
-empIds.push({{ e['id'] }});
-{% endfor %}
+let empIds = [];
+
+function initEmpIds() {
+    empIds = Array.prototype.map.call(
+        document.querySelectorAll('[id^="card-"]'),
+        function(el) {
+            return parseInt(el.id.replace('card-', ''), 10);
+        }
+    );
+}
+
+function getCounts() {
+    let present = 0;
+    let absent = 0;
+
+    empIds.forEach(function(id) {
+        const statusEl = document.getElementById('status-' + id);
+        if (!statusEl) return;
+
+        const text = (statusEl.textContent || '').toLowerCase();
+        if (text.includes('absent')) absent += 1;
+        else present += 1;
+    });
+
+    return { present, absent };
+}
+
+function renderCounts() {
+    const counts = getCounts();
+    const presentPill = document.getElementById('presentCountPill');
+    const absentPill = document.getElementById('absentCountPill');
+
+    if (presentPill) presentPill.textContent = 'Present: ' + counts.present;
+    if (absentPill) absentPill.textContent = 'Absent: ' + counts.absent;
+}
+
+function setCardUI(empId, status) {
+    const statusWrap = document.getElementById('status-' + empId);
+    const card = document.getElementById('card-' + empId);
+    if (!statusWrap || !card) return;
+
+    if (status === 'Absent') {
+        statusWrap.innerHTML = '<span class="badge-status badge-absent">Absent</span>';
+    } else {
+        statusWrap.innerHTML = '<span class="badge-status badge-present">Present</span>';
+    }
+
+    const actions = card.querySelector('.att-actions');
+    if (!actions) return;
+
+    if (status === 'Absent') {
+        actions.innerHTML =
+            '<button class="att-btn att-btn--present"'
+            + ' data-emp-id="' + empId + '"'
+            + ' data-status="Present"'
+            + ' onclick="markAttFromButton(this)">'
+            + '<i class="bi bi-check-circle-fill me-1"></i>'
+            + 'Mark Present'
+            + '</button>';
+    } else {
+        actions.innerHTML =
+            '<button class="att-btn att-btn--absent"'
+            + ' data-emp-id="' + empId + '"'
+            + ' data-status="Absent"'
+            + ' onclick="markAttFromButton(this)">'
+            + '<i class="bi bi-x-circle-fill me-1"></i>'
+            + 'Mark Absent'
+            + '</button>';
+    }
+}
 
 function markAttFromButton(button) {
-
     const empId = button.dataset.empId;
-
     const status = button.dataset.status;
-
     markAtt(empId, status);
-
 }
 
 function changeDate() {
-
     const date = document.getElementById('datePicker').value;
-
     window.location.href = '/attendance?date=' + date;
 }
 
 function markAtt(empId, status) {
-
     const date = document.getElementById('datePicker').value;
 
     fetch('/attendance/mark', {
-
         method: 'POST',
-
-        headers: {
-            'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify({
-            emp_id: empId,
-            date: date,
-            status: status
-        })
-
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emp_id: empId, date: date, status: status })
     })
-
     .then(response => response.json())
-
     .then(data => {
-
-        if (data.success) {
-            location.reload();
+        if (data && data.success) {
+            setCardUI(empId, status);
+            renderCounts();
         }
-
     })
-
-    .catch(error => {
-        console.error(error);
-    });
+    .catch(error => console.error(error));
 }
 
-function markAllAbsent() {
-
-    empIds.forEach(function(id) {
-        markAtt(id, 'Absent');
-    });
+async function markAllAbsent() {
+    // sequential to keep UI consistent
+    for (let i = 0; i < empIds.length; i++) {
+        const id = empIds[i];
+        // eslint-disable-next-line no-await-in-loop
+        await markAtt(id, 'Absent');
+    }
+    renderCounts();
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+    renderCounts();
+});
 </script>
 
 {% endblock %}

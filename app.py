@@ -12,6 +12,7 @@ import os
 import csv
 import io
 from datetime import datetime, date
+import calendar
 from functools import wraps
 import pyotp
 import qrcode
@@ -640,11 +641,9 @@ def attendance_summary():
     summary = []
     today = date.today()
     
-    # Calculate total days for the month
-    if month_filter == today.strftime('%Y-%m'):
-        total_days = today.day
-    else:
-        total_days = 30
+    # Calculate total days for the month_filter (handles 28/29/30/31 days)
+    year, month_num = map(int, month_filter.split('-'))
+    total_days = calendar.monthrange(year, month_num)[1]
     
     for e in emps:
         absent_days = conn.execute('''
@@ -698,13 +697,9 @@ def salary():
 
     for e in emps:
 
-        # Total working days
-        today = date.today()
-
-        if month_filter == today.strftime('%Y-%m'):
-            total_days = today.day
-        else:
-            total_days = 30
+        # Total working days for selected month_filter (handles 28/29/30/31)
+        year, month_num = map(int, month_filter.split('-'))
+        total_days = calendar.monthrange(year, month_num)[1]
 
         # Count absent days only
         absent_days = conn.execute('''
@@ -721,8 +716,8 @@ def salary():
         # Present days
         present_days = total_days - absent_days
 
-        # Salary calculation
-        salary_per_day = e['salary'] / 30
+        # Salary calculation (use actual days in selected month)
+        salary_per_day = e['salary'] / total_days
 
         final_salary = round(
             salary_per_day * present_days,
