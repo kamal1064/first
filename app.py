@@ -34,15 +34,6 @@ def get_db():
     conn.row_factory = sqlite3.Row  # allows dict-like access
     return conn
 
-# Ensure DB schema exists in all deployment modes (not just __main__)
-# This is important for hosts that import the app via WSGI.
-try:
-    init_db()
-except Exception:
-    # If DB isn't writable yet, the app may still start; schema will be handled on first request.
-    pass
-
-
 def init_db():
     """Create all tables if they don't exist."""
     conn = get_db()
@@ -157,6 +148,17 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Ensure DB schema exists in all deployment modes (not just __main__)
+# Important for hosts that import the app via WSGI.
+try:
+    init_db()
+except Exception:
+    # If DB isn't writable yet, the app may still start; schema will be handled on first request.
+    pass
+
+# ─────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────
 # ─────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────
@@ -788,6 +790,8 @@ def salary():
         advance_amount_paid = rec['advance_amount_paid'] if rec else 0
         advance_paid_at = rec['advance_paid_at'] if rec else None
 
+        net_delta = round(final_salary - advance_amount_paid, 2)
+
         salary_details.append({
             'id': e['id'],
             'name': e['name'],
@@ -797,6 +801,7 @@ def salary():
             'final_salary': final_salary,
             'advance_amount_paid': advance_amount_paid,
             'advance_paid_at': advance_paid_at,
+            'net_delta': net_delta,
             'payment_status': payment_status,
             'paid_at': paid_at
         })
@@ -919,6 +924,8 @@ def salary_set_advance():
     advance_paid_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     conn = get_db()
+
+    # Update advance in DB
     conn.execute('''
         UPDATE salary_records
         SET advance_amount_paid=?,
@@ -926,13 +933,31 @@ def salary_set_advance():
         WHERE emp_id=? AND month=? AND payment_status IN ('Unpaid','Paid')
     ''', (advance_amount_paid, advance_paid_at, emp_id, month))
     conn.commit()
+
+    # Recompute net delta using stored final_salary (total_salary)
+    rec = conn.execute('''
+        SELECT total_salary, advance_amount_paid
+        FROM salary_records
+        WHERE emp_id=? AND month=?
+    ''', (emp_id, month)).fetchone()
+
     conn.close()
+
+    if not rec:
+        return jsonify({'success': False, 'message': 'Salary record not found'}), 404
+
+    total_salary = float(rec['total_salary'] or 0)
+    current_advance = float(rec['advance_amount_paid'] or 0)
+    net_delta = round(total_salary - current_advance, 2)
 
     return jsonify({
         'success': True,
         'advance_amount_paid': advance_amount_paid,
-        'advance_paid_at': advance_paid_at
+        'advance_paid_at': advance_paid_at,
+        'net_delta': net_delta,
+        'payable_type': 'take_back' if net_delta < 0 else 'payable'
     })
+
 
 @app.route('/part-time/set_advance', methods=['POST'])
 @login_required
@@ -952,6 +977,7 @@ def part_time_set_advance():
 
     uid = get_current_user_id()
     conn = get_db()
+
     # Update only rows that belong to this user
     conn.execute('''
         UPDATE part_time_employee
@@ -960,13 +986,31 @@ def part_time_set_advance():
         WHERE id=? AND user_id=?
     ''', (advance_amount_paid, advance_paid_at, record_id, uid))
     conn.commit()
+
+    # Recompute net delta
+    rec = conn.execute('''
+        SELECT total_price, advance_amount_paid
+        FROM part_time_employee
+        WHERE id=? AND user_id=?
+    ''', (record_id, uid)).fetchone()
+
     conn.close()
+
+    if not rec:
+        return jsonify({'success': False, 'message': 'Record not found'}), 404
+
+    total_price = float(rec['total_price'] or 0)
+    current_advance = float(rec['advance_amount_paid'] or 0)
+    net_delta = round(total_price - current_advance, 2)
 
     return jsonify({
         'success': True,
         'advance_amount_paid': advance_amount_paid,
-        'advance_paid_at': advance_paid_at
+        'advance_paid_at': advance_paid_at,
+        'net_delta': net_delta,
+        'payable_type': 'take_back' if net_delta < 0 else 'payable'
     })
+
 
 # ─────────────────────────────────────────
 # EXPORT

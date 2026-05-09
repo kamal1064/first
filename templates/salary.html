@@ -47,6 +47,8 @@
           <th>Present Days</th>
           <th>Calculated Salary</th>
           <th>Advance Amount Paid</th>
+          {# Column removed #}
+          {# <th>Payable / Take Back</th> #}
           <th>Status</th>
           <th class="text-end">Action</th>
         </tr>
@@ -81,6 +83,7 @@
               {% if s.advance_paid_at %}Saved: {{ s.advance_paid_at[:10] }}{% endif %}
             </div>
           </td>
+
           <td>
             <button class="btn-primary-custom btn-advance-update"
                     id="advance-btn-{{ s.id }}"
@@ -156,7 +159,7 @@ function setAdvance(button) {
 
   const input = document.getElementById('advance-input-' + empId);
   const msg = document.getElementById('advance-msg-' + empId);
-  const value = input ? input.value : 0;
+  const value = input ? input.value.toString().replace(/,/g, '') : 0;
 
   msg.textContent = 'Saving...';
 
@@ -170,6 +173,8 @@ function setAdvance(button) {
     if (ok && data.success) {
       const when = data.advance_paid_at ? data.advance_paid_at.slice(0,10) : '';
       msg.textContent = when ? `Saved ✅ (${when})` : 'Saved ✅';
+
+      // (Payable / Take Back column removed)
     } else {
       msg.textContent = data.message ? data.message : 'Failed';
     }

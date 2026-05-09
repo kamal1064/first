@@ -140,7 +140,9 @@
                     <th>Location</th>
                     <th>Slab Qty</th>
                     <th>Per Slab</th>
-                    <th>Total</th>
+                    <th>Total Price</th>
+                    {# Column removed #}
+                    {# <th>Payable / Take Back</th> #}
                     <th>Advance Amount Paid</th>
                     <th class="text-end">Action</th>
                 </tr>
@@ -167,6 +169,7 @@
                     <td class="salary-cell fw-bold">
                         ₹{{ r['total_price'] }}
                     </td>
+
                     <td class="salary-cell">
                         <div class="d-flex align-items-center gap-2">
                             <input type="number"
@@ -197,7 +200,7 @@
                 {% else %}
 
                 <tr>
-                    <td colspan="9"
+                    <td colspan="10"
                         class="text-center py-4 text-muted">
 
                         No records found
@@ -258,7 +261,7 @@ function setAdvancePart(button) {
 
     if (!input) return;
 
-    const value = input.value;
+    const value = (input.value || '').toString().replace(/,/g, '');
 
     msg.textContent = 'Saving...';
 
