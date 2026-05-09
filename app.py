@@ -34,14 +34,6 @@ def get_db():
     conn.row_factory = sqlite3.Row  # allows dict-like access
     return conn
 
-# Ensure DB schema exists in all deployment modes (not just __main__)
-# This is important for hosts that import the app via WSGI.
-try:
-    init_db()
-except Exception:
-    # If DB isn't writable yet, the app may still start; schema will be handled on first request.
-    pass
-
 
 def init_db():
     """Create all tables if they don't exist."""
@@ -72,7 +64,6 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
 
-    #part time mployee table
     # Part Time Employees
     c.execute('''
         CREATE TABLE IF NOT EXISTS part_time_employee (
@@ -156,6 +147,15 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+# Ensure DB schema exists in all deployment modes (not just __main__)
+# This is important for hosts that import the app via WSGI.
+try:
+    init_db()
+except Exception:
+    # If DB isn't writable yet, the app may still start; schema will be handled on first request.
+    pass
 
 # ─────────────────────────────────────────
 # HELPERS
